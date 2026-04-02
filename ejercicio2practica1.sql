@@ -5,7 +5,7 @@ CREATE TYPE PERSONA AS OBJECT (
     nom VARCHAR2(50),
     adreca VARCHAR2(100),
     telefon VARCHAR2(15)
-) NOT FINAL;
+);
 
 CREATE TYPE EMPLEAT UNDER PERSONA (
     sou NUMBER,
@@ -13,7 +13,7 @@ CREATE TYPE EMPLEAT UNDER PERSONA (
     correuCorp VARCHAR2(50),
     departament VARCHAR2(50),
     MEMBER FUNCTION antiguitat RETURN NUMBER
-) NOT FINAL;
+);
 
 SELECT nom, EXTRACT(YEAR FROM SYSDATE) - EXTRACT(YEAR FROM datacontracte) AS antiguitat 
 FROM TABINVESTIGADOR;
@@ -43,7 +43,7 @@ CREATE TYPE ALUMNE UNDER PERSONA (
     numexpedient NUMBER,
     correu VARCHAR2(50),
     datanaixement DATE
-) NOT FINAL;
+);
 
 SELECT a.nom, a.edat() AS edat_actual FROM TALUMNE a;
 
