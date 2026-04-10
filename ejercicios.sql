@@ -1,114 +1,124 @@
-/*Ejercicios 1*/
-CREATE TYPE Producto AS OBJECT (
-    id_producto NUMBER PRIMARY KEY,
-    nombre VARCHAR2(50),
-    precio NUMBER(6,2)
-);
-CREATE TABLE Productos OF Producto;
-INSERT INTO Productos VALUES (1, 'Pelota',
-'10');
-INSERT INTO Productos VALUES (2, 'Coche',
-'10');
-INSERT INTO Productos VALUES (3, 'Tele',
-'10');
-CREATE TYPE ProductoElectronico UNDER Producto (
-    garantia NUMBER
-);
-SELECT P.id_producto, P.nombre, P.precio, P.garantia FROM Productos P;
-SELECT P.nombre, P.precio FROM Productos P WHERE P.precio > 50;
-SELECT P.garantia, P.nombre FROM Productos WHERE garantia IS NOT NULL;
-
-CREATE TYPE Cliente AS OBJECT (
-    id_cliente NUMBER PRIMARY KEY,
-    nombre VARCHAR2(50),
-    telefono VARCHAR2(15)
-);
-CREATE TABLE Clientes OF Cliente;
-INSERT INTO Clientes VALUES (1, 'Alex',
-'192837465');
-INSERT INTO Clientes VALUES (2, 'Oliver',
-'123456789');
-INSERT INTO Clientes VALUES (3, 'Marc',
-'987654321');
-SELECT * FROM Clientes WHERE nombre LIKE 'H%';
-
-/*Ejercicios 2*/
-CREATE TYPE Vehiculo AS OBJECT (
-    id_vehiculo NUMBER PRIMARY KEY,
-    marca VARCHAR2(50),
-    modelo VARCHAR2(50),
-    precio NUMBER(10,2)
-);
-CREATE TABLE Vehiculos OF Vehiculo;
-INSERT INTO Vehiculos VALUES (1, 'NISSAN',
-'Almera', 999999);
-INSERT INTO Vehiculos VALUES (2, 'SKODA',
-'Fabia', 9);
-INSERT INTO Vehiculos VALUES (3, 'Ferrari',
-'Superb', 99999);
-CREATE TYPE VehiculoElectrico UNDER Vehiculo (
-    autonomia NUMBER
-);
-INSERT INTO Vehiculos VALUES (4, 'FIAT',
-'500', 99999, 350);
-SELECT * FROM Vehiculos;
-SELECT V.id_vehiculo, V.marca, V.modelo FROM Vehiculos V;
-SELECT * FROM Vehiculos V WHERE V.precio > 20000;
-SELECT V.autonomia, V.marca FROM Vehiculos;
-CREATE TYPE Propietario AS OBJECT (
-    id_propietario NUMBER,
-    nombre VARCHAR2(50),
-    telefono VARCHAR2(15),
-    coche REF Vehiculo
-);
-CREATE TABLE Propietarios OF Propietario(
-    responsable SCOPE IS Vehiculos
-);
-INSERT INTO Propietarios VALUES (1, 'Iker',
-'12356789', 'Nissan');
-INSERT INTO Propietarios VALUES (2, 'Oliver',
-'987654321', 'Skoda');
-SELECT TREAT(VALUE(P) AS Propietario).responsable FROM Propietario P;
-
-/*Ejercicio T2 BDOR*/
 CREATE TYPE Adreca AS OBJECT (
-    carrer VARCHAR PRIMARY KEY,
-    ciutat VARCHAR(20),
-    codipostal VARCHAR(10) 
+    carrer VARCHAR2(50),
+    ciutat VARCHAR2(50),
+    codi_postal VARCHAR2(10)
 );
+
+
 CREATE TYPE Telefon AS OBJECT (
-    tipus VARCHAR(15),
-    numero VARCHAR PRIMARY KEY
+    tipus VARCHAR2(15),
+    numero VARCHAR2(15)
 );
-CREATE TYPE Telefonos AS VARRAY(2) OF Telefon;
-CREATE TYPE Provedor AS OBJECT (
-    codi NUMBER PRIMARY KEY,
-    nom VARCHAR(10),
-    adreça adreca,
+
+
+CREATE TYPE Telefons AS VARRAY(2) OF Telefon;
+
+CREATE TYPE Proveidor AS OBJECT (
+    codi NUMBER,
+    nom VARCHAR2(50),
+    adreca Adreca,
     vec_telefons Telefons,
-    correu_electronico VARCHAR(20)
+    correu_electronic VARCHAR2(50)
 );
+
 CREATE TYPE Material AS OBJECT (
-    codi NUMBER PRIMARY KEY,
-    nom VARCHAR(116),
-    descripcio VARCHAR(200),
-    cost_unitari NUMBER(100,2)
+    codi NUMBER,
+    nom VARCHAR2(100),
+    descripcio VARCHAR2(200),
+    cost_unitari NUMBER(10,2)
 );
+
 CREATE TYPE Linia_compra AS OBJECT(
-    codi NUMBER PRIMARY KEY,
-    ref_material NUMBER FOREIGN KEY REFERENCES Material(codi),
-    quantitat NUMBER(999),
-    descompte NUMBER(10)
+    codi NUMBER,
+    ref_material REF Material,
+    quantitat NUMBER,
+    descompte NUMBER,
+    MEMBER FUNCTION subtotal RETURN NUMBER
 );
-CREATE TABLE linies OF Linia_compra;
-CREATE TYPE compra AS OBJECT (
-    codi NUMBER PRIMARY KEY,
-    data_compra VARCHAR(11),
-    ref_proveidor VARCHAR FOREIGN KEY REFERENCES Provedor(codi),
-    taula_linies linies
+
+CREATE TYPE BODY Linia_compra AS
+    MEMBER FUNCTION subtotal RETURN NUMBER IS
+        preu NUMBER;
+    BEGIN
+        SELECT m.cost_unitari INTO preu
+        FROM Materials m
+        WHERE REF(m) = SELF.ref_material;
+
+        RETURN (preu * quantitat) * (1 - descompte/100);
+    END;
+END;
+
+CREATE TYPE Taula_linies AS TABLE OF Linia_compra;
+
+CREATE TYPE Compra AS OBJECT (
+    codi NUMBER,
+    data_compra VARCHAR2(20),
+    ref_proveidor REF Proveidor,
+    taula_linies Taula_linies,
+    MEMBER FUNCTION total RETURN NUMBER
 );
-SELECT codi, SUM((cost_unitari * quantitat) * (1 - (descompte / 100))) AS total_compra
-FROM Linia_compra GROUP BY codi;
-SELECT codi, SUM(total_compra) AS cost_total_compra
-FROM linia_compra
-WHERE codi = 123 GROUP BY codi;
+
+CREATE TYPE BODY Compra AS
+    MEMBER FUNCTION total RETURN NUMBER IS
+        suma NUMBER := 0;
+    BEGIN
+        FOR i IN 1..taula_linies.COUNT LOOP
+            suma := suma + taula_linies(i).subtotal();
+        END LOOP;
+        RETURN suma;
+    END;
+END;
+
+CREATE TABLE Materials OF Material (
+    codi PRIMARY KEY
+);
+
+CREATE TABLE Proveidors OF Proveidor (
+    codi PRIMARY KEY
+);
+
+CREATE TABLE Compres OF Compra (
+    codi PRIMARY KEY
+
+NESTED TABLE taula_linies STORE AS linies_nested;
+
+
+INSERT INTO Materials VALUES (1, 'Teclado', 'Teclado mecanico', 50);
+INSERT INTO Materials VALUES (2, 'Raton', 'Raton gaming', 30);
+
+INSERT INTO Proveidors VALUES (
+    1,
+    'Proveedor1',
+    Adreca('Calle 1', 'Barcelona', '08001'),
+    Telefons(
+        Telefon('movil','123456789'),
+        Telefon('fijo','987654321')
+    ),
+    'prov1@email.com'
+);
+
+INSERT INTO Compres VALUES (
+    1,
+    '10-04-2026',
+    (SELECT REF(p) FROM Proveidors p WHERE p.codi = 1),
+    Taula_linies(
+        Linia_compra(
+            1,
+            (SELECT REF(m) FROM Materials m WHERE m.codi = 1),
+            2,
+            10
+        ),
+        Linia_compra(
+            2,
+            (SELECT REF(m) FROM Materials m WHERE m.codi = 2),
+            1,
+            0
+        )
+    )
+);
+
+SELECT l.codi, l.subtotal()
+FROM Compres c, TABLE(c.taula_linies) l;
+
+SELECT c.codi, c.total()
+FROM Compres c;
